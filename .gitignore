@@ -1,0 +1,59 @@
+#include <Arduino.h>
+#include "audio_dsp.h"
+#include "config.h"
+
+AudioDSP dsp;
+
+void setup() {
+    Serial.begin(115200);
+    delay(200);
+
+    dsp.begin(AUDIO_SAMPLE_RATE);
+    dsp.setInputGain(0.0f);
+    dsp.setOutputGain(0.0f);
+
+    dsp.setEqBand(0, 3.0f);
+    dsp.setEqBand(1, 2.0f);
+    dsp.setEqBand(2, 1.5f);
+    dsp.setEqBand(3, 0.5f);
+    dsp.setEqBand(4, 0.0f);
+    dsp.setEqBand(5, 0.0f);
+    dsp.setEqBand(6, -0.5f);
+    dsp.setEqBand(7, -1.0f);
+    dsp.setEqBand(8, 1.0f);
+    dsp.setEqBand(9, 1.5f);
+
+    dsp.setCrossover(AUDIO_CROSSOVER_LOW_HZ,
+                     AUDIO_CROSSOVER_MID_LOW_HZ,
+                     AUDIO_CROSSOVER_MID_HIGH_HZ,
+                     AUDIO_CROSSOVER_HIGH_HZ);
+    dsp.setLimiterThreshold(AUDIO_LIMITER_THRESHOLD_DBFS);
+    dsp.setPhaseInvert(false, false);
+
+    Serial.println("ESP32-S3 Digital Loudspeaker Management System ready");
+    Serial.println("Pipeline: Gain -> EQ 10-band -> Crossover 3-way -> Limiter -> Phase control");
+}
+
+void loop() {
+    static uint32_t timeStampMs = 0;
+    static float phase = 0.0f;
+
+    const float sampleRate = AUDIO_SAMPLE_RATE;
+    const float leftFreq = 220.0f;
+    const float rightFreq = 440.0f;
+
+    float left = 0.25f * sinf(2.0f * PI * leftFreq * (phase / sampleRate));
+    float right = 0.25f * sinf(2.0f * PI * rightFreq * (phase / sampleRate));
+
+    dsp.processFrame(left, right);
+
+    phase += 1.0f;
+
+    if (millis() - timeStampMs > 100) {
+        timeStampMs = millis();
+        Serial.printf("L=%.4f  R=%.4f\n", left, right);
+    }
+
+    delay(1);
+}
+
